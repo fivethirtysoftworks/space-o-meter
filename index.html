@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space-O-Meter</title>
+  <meta name="description" content="Space-O-Meter is a lightweight macOS menu bar app for monitoring local and network disk usage." />
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2e;
+      --panel: rgba(255,255,255,0.08);
+      --panel-border: rgba(255,255,255,0.12);
+      --text: #edf4ff;
+      --muted: #a9bdd8;
+      --blue: #63a7ff;
+      --blue-2: #8dd0ff;
+      --green: #65d59b;
+      --yellow: #f4cc62;
+      --red: #ff7575;
+      --shadow: 0 24px 60px rgba(0,0,0,0.35);
+      --radius: 24px;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(99,167,255,0.22), transparent 32%),
+        radial-gradient(circle at top right, rgba(101,213,155,0.12), transparent 22%),
+        linear-gradient(180deg, #08111d 0%, #091423 45%, #07111f 100%);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .wrap {
+      width: min(calc(100% - 32px), var(--max));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: rgba(7,17,31,0.72);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, rgba(141,208,255,0.24), rgba(99,167,255,0.12));
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+      font-size: 18px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .hero {
+      padding: 72px 0 52px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--blue-2);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    h1 {
+      margin: 18px 0 14px;
+      font-size: clamp(2.6rem, 5vw, 4.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 640px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.65;
+    }
+
+    .cta-row {
+      margin-top: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      transition: 180ms ease;
+    }
+
+    .btn-primary {
+      color: #07111f;
+      background: linear-gradient(180deg, #9bd5ff, #63a7ff);
+      box-shadow: 0 12px 30px rgba(99,167,255,0.28);
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); }
+
+    .btn-secondary {
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .btn-secondary:hover { background: rgba(255,255,255,0.07); }
+
+    .hero-card {
+      position: relative;
+      background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+      border: 1px solid var(--panel-border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 15% 0%, rgba(141,208,255,0.14), transparent 35%);
+      pointer-events: none;
+    }
+
+    .window-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.24);
+    }
+
+    .mock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .mock-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .mock-sub {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .usage-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .usage-row strong { font-size: 15px; }
+    .usage-row span { color: var(--muted); font-size: 12px; }
+
+    .usage-pct {
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .bar {
+      margin: 14px 0;
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .bar > i {
+      display: block;
+      width: 72%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .stat small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat strong {
+      font-size: 13px;
+    }
+
+    .mini-stack {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+    }
+
+    section {
+      padding: 42px 0;
+    }
+
+    .section-head {
+      max-width: 720px;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      letter-spacing: -0.04em;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .feature {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .feature .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 20px;
+    }
+
+    .feature h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.96rem;
+    }
+
+    .two-up {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 1.2rem;
+    }
+
+    .panel p, .panel li {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .panel ul {
+      margin: 14px 0 0;
+      padding-left: 18px;
+    }
+
+    .footer {
+      padding: 24px 0 52px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .features,
+      .two-up {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding-top: 44px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav-inner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .nav-links {
+        flex-wrap: wrap;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .logo {
+        height: 32px;
+        width: 32px;
+        display: block;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a href="#top" class="brand">
+        <img src="appicon.png" alt="Space-O-Meter logo" class="logo">
+<span>Space-O-Meter</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#why">Why it exists</a>
+        <a href="#download">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">macOS menu bar utility</div>
+          <h1>Keep an eye on disk space before it becomes a problem.</h1>
+          <p>
+            Space-O-Meter by Fivethrity Softworks is a lightweight macOS app that lives in your menu bar and shows local, external, and mounted network disk usage at a glance. No bloated dashboard. No system-monitor overload. Just the storage info you actually need.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#download">Download</a>
+            <a class="btn btn-secondary" href="#features">See features</a>
+          </div>
+        </div>
+
+        <div class="hero-card" aria-label="Space-O-Meter preview">
+          <div class="window-bar">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+
+          <div class="mock-header">
+            <div>
+              <div class="mock-title">Space-O-Meter</div>
+              <div class="mock-sub">Updated 4:12 PM</div>
+            </div>
+            <div class="mock-sub">72% used</div>
+          </div>
+
+          <div class="card">
+            <div class="usage-row">
+              <div>
+                <strong>Macintosh HD</strong>
+                <div><span>412 GB free of 1.5 TB</span></div>
+              </div>
+              <div class="usage-pct">72%</div>
+            </div>
+            <div class="bar"><i></i></div>
+            <div class="stats">
+              <div class="stat"><small>Used</small><strong>1.1 TB</strong></div>
+              <div class="stat"><small>Free</small><strong>412 GB</strong></div>
+              <div class="stat"><small>Total</small><strong>1.5 TB</strong></div>
+            </div>
+          </div>
+
+          <div class="mini-stack">
+            <div class="mini"><span>homelab.local</span><strong>2.8 TB free</strong></div>
+            <div class="mini"><span>Raptor01</span><strong>1.3 TB free</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Simple on purpose.</h2>
+          <p>
+            Space-O-Meter is built for people who want storage visibility without turning their menu bar into a cockpit.
+          </p>
+        </div>
+
+        <div class="features">
+          <article class="feature">
+            <div class="icon">💽</div>
+            <h3>Local disk monitoring</h3>
+            <p>See remaining space on your internal drive directly from the menu bar with a clean, compact readout.</p>
+          </article>
+          <article class="feature">
+            <div class="icon">🌐</div>
+            <h3>Mounted network volumes</h3>
+            <p>Keep tabs on mounted NAS or shared storage volumes without opening Finder or Disk Utility.</p>
+          </article>
+          <article class="feature">
+            <div class="icon">⚡</div>
+            <h3>Fast, lightweight, focused</h3>
+            <p>No giant dashboards, no endless modules, no pointless graphs unless they serve the one job that matters.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="why">
+      <div class="wrap two-up">
+        <div class="panel">
+          <h3>Why Space-O-Meter exists</h3>
+          <p>
+            Plenty of system monitors can show disk usage, but most of them bury it in a pile of CPU graphs, fan speeds, memory charts, and network noise. Space-O-Meter strips that down to the one thing a lot of people actually need: immediate storage awareness.
+          </p>
+          <p>
+            It is built to feel native on macOS, stay out of your way, and make low-space surprises less likely.
+          </p>
+        </div>
+
+        <div class="panel">
+          <h3>What it does best</h3>
+          <ul>
+            <li>Shows available storage at a glance</li>
+            <li>Surfaces local, external, and mounted network disks</li>
+            <li>Gives you a Stats-inspired look without copying the whole app category</li>
+            <li>Stays small enough to be useful every day</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="wrap">
+        <div class="panel">
+          <div class="section-head" style="margin-bottom: 0;">
+            <h2>Download Space-O-Meter 1.0 Beta</h2>
+            <p>
+              System Requirements: macOS 13 or later, Intel or Apple Silicon Mac. Network volume monitoring requires the disk to be mounted in Finder/macOS.
+            </p>
+          </div>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#">Download for macOS</a>
+            <a class="btn btn-secondary" href="https://github.com/fivethirtysoftworks/space-o-meter">View on GitHub</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-card">
+      <div>
+        <strong style="display:block; color: var(--text); margin-bottom: 6px;">Space-O-Meter</strong>
+        <span>A lightweight disk usage monitor for macOS.</span>
+      </div>
+      <div>© 2026 Space-O-Meter. A Fivethirty Softworks App. All rights reserved. Made in West Virginia. Coded by Sasquatch. Trademark Notice: macOS is a trademark of Apple Inc. All other trademarks are the property of their respective owners. Space-O-Meter by Fivethirty Softworks is not affiliated with or endorsed by these companies.</div>
+    </div>
+  </footer>
+</body>
+</html>
